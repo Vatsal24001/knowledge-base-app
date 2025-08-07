@@ -1,6 +1,6 @@
 const { OpenAIEmbeddings } = require('@langchain/openai');
 const { Chroma } = require('@langchain/community/vectorstores/chroma');
-const { Document } = require('langchain/document');
+const { Document } = require('@langchain/core/documents');
 
 class VectorStoreService {
   constructor() {

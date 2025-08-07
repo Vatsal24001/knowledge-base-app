@@ -1,7 +1,7 @@
 const fs = require('fs-extra');
 const path = require('path');
-const { RecursiveCharacterTextSplitter } = require('langchain/text_splitter');
-const { Document } = require('langchain/document');
+const { RecursiveCharacterTextSplitter } = require('@langchain/textsplitters');
+const { Document } = require('@langchain/core/documents');
 
 class DocumentProcessor {
   constructor() {
