@@ -107,7 +107,9 @@ uploads/
 *.pdf
 *.docx
 *.txt
+# Exclude README.md from being ignored
 *.md
+!README.md
 
 # Docker
 .dockerignore
