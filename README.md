@@ -12,10 +12,12 @@ A RAG (Retrieval-Augmented Generation) based knowledge base application built wi
 - **Batch Processing**: Upload and process multiple documents at once
 - **RESTful API**: Complete API for document ingestion and management
 
-### Phase 2: Query Pipeline (Coming Soon)
+### Phase 2: Query Pipeline ✅
 - **Query Embedding**: Convert user questions to vector embeddings
 - **Similarity Search**: Find relevant document chunks
 - **RAG Generation**: Generate AI-powered responses using retrieved context
+- **Streaming Responses**: Real-time streaming of AI responses via Server-Sent Events
+- **Alternative Questions**: Generate multiple question variants for better context retrieval
 
 ## 📁 Project Structure
 
@@ -146,7 +148,9 @@ GET /api/ingestion/status
 DELETE /api/ingestion/clear
 ```
 
-### Query (Phase 2 - Coming Soon)
+### Query Endpoints
+
+#### Standard Query
 ```bash
 POST /api/query/ask
 Content-Type: application/json
@@ -156,9 +160,61 @@ Content-Type: application/json
 }
 ```
 
+#### Streaming Query
+```bash
+POST /api/query/ask-stream
+Content-Type: application/json
+
+{
+  "question": "What were the key takeaways from the Q3 analysis?"
+}
+```
+
+The streaming endpoint returns Server-Sent Events (SSE) with the following event types:
+- `connected`: Initial connection established
+- `content`: AI response chunks
+- `complete`: Query completed with metadata
+- `error`: Error occurred during processing
+
+**Example JavaScript usage:**
+```javascript
+const response = await fetch('/api/query/ask-stream', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ question: 'Your question here' })
+});
+
+const reader = response.body.getReader();
+const decoder = new TextDecoder();
+
+while (true) {
+  const { done, value } = await reader.read();
+  if (done) break;
+  
+  const chunk = decoder.decode(value);
+  const lines = chunk.split('\n');
+  
+  for (const line of lines) {
+    if (line.startsWith('data: ')) {
+      const data = JSON.parse(line.slice(6));
+      console.log(data.type, data.content);
+    }
+  }
+}
+```
+
 ## 🚀 Usage Examples
 
-### 1. Using the API
+### 1. Interactive Demo
+
+Visit the streaming demo in your browser:
+```bash
+http://localhost:3000/demo
+```
+
+This provides a web interface to test the streaming functionality with real-time AI responses.
+
+### 2. Using the API
 
 #### Upload a Document
 ```bash
@@ -334,4 +390,4 @@ For issues and questions:
 
 ---
 
-**Note**: This is Phase 1 implementation. Phase 2 (Query Pipeline) will be implemented next with RAG capabilities. 
+**Note**: Both Phase 1 (Data Ingestion Pipeline) and Phase 2 (Query Pipeline) are now fully implemented with streaming capabilities. 

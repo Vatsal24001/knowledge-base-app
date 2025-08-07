@@ -21,6 +21,7 @@ class AstraDBQueryService {
       openAIApiKey: process.env.OPENAI_API_KEY,
       modelName: "gpt-4o-mini",
       temperature: 0.7,
+      streaming: true,
       maxTokens: 4000,
     });
 
@@ -148,6 +149,100 @@ Question: {question}
     } catch (error) {
       console.error("❌ Query failed:", error);
       throw new Error(`Query failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Stream the AI response with context from vector store
+   * @param {string} question - User's question
+   * @param {Function} onChunk - Callback function for each chunk
+   * @param {number} k - Number of similar documents to retrieve
+   * @returns {Promise<Object>} Metadata about the query
+   */
+  async queryAIStream(question, onChunk) {
+    try {
+      console.log(`🤖 Processing streaming question: "${question}"`);
+
+      const startTime = Date.now();
+      
+      const alternativeQuestions = await this.generateAlternativeQuestions(question, ALTERNATIVE_QUESTION_COUNT);
+      const allQuestions = [question, ...alternativeQuestions];
+      console.log("All Questions: ",allQuestions);
+      
+      // Step 1: Retrieve relevant documents from vector store
+      const relevantDocs = await this.vectorStoreService.similaritySearchMultiple(
+        allQuestions,
+        MAX_RELEVANT_DOCS_PER_QUESTION
+      );
+
+      console.log("Relevant docs", relevantDocs);
+
+      if (relevantDocs.length === 0) {
+        onChunk({
+          type: 'error',
+          content: "I cannot find any relevant information in the knowledge base to answer your question."
+        });
+        return {
+          sources: [],
+          processingTime: Date.now() - startTime,
+          documentsRetrieved: 0,
+        };
+      }
+
+      // Step 2: Prepare context from retrieved documents
+      const context = relevantDocs.map((doc) => doc.pageContent).join("\n\n");
+
+      // Step 3: Stream AI response
+      await this.chain.stream({
+        context: context,
+        question: question,
+      }, {
+        callbacks: [
+          {
+            handleLLMNewToken(token) {
+              console.log("Streaming chunk:", token);
+              onChunk({
+                type: 'content',
+                content: token
+              });
+            }
+          }
+        ]
+      });
+
+      let answer = "";
+
+      const stream = await this.chain.stream({
+        context: context,
+        question: question,
+      });
+
+      for await (const chunk of stream) {
+        console.log("Streaming chunk:", chunk);
+        answer += chunk;
+        onChunk({
+          type: 'content',
+          content: chunk
+        });
+      }
+
+      const processingTime = Date.now() - startTime;
+
+      console.log(`✅ Streaming query completed in ${processingTime}ms`);
+
+      return {
+        question: question,
+        answer: answer,
+        processingTime,
+        documentsRetrieved: relevantDocs.length,
+      };
+    } catch (error) {
+      console.error("❌ Streaming query failed:", error);
+      onChunk({
+        type: 'error',
+        content: `Query failed: ${error.message}`
+      });
+      throw new Error(`Streaming query failed: ${error.message}`);
     }
   }
 
