@@ -9,12 +9,12 @@ dotenv.config();
 
 // Import services
 const DocumentProcessor = require('../services/DocumentProcessor');
-const VectorStoreService = require('../services/VectorStoreService');
+const AstraDBVectorStoreService = require('../services/AstraDBVectorStoreService');
 
 class IngestionScript {
   constructor() {
     this.documentProcessor = new DocumentProcessor();
-    this.vectorStoreService = new VectorStoreService();
+    this.vectorStoreService = new AstraDBVectorStoreService();
   }
 
   /**
@@ -23,7 +23,7 @@ class IngestionScript {
    */
   async processSingleDocument(filePath) {
     try {
-      console.log(`\n🚀 Starting ingestion for: ${path.basename(filePath)}`);
+      console.log(`\n🚀 Starting Astra DB ingestion for: ${path.basename(filePath)}`);
       
       // Validate the document
       await this.documentProcessor.validateDocument(filePath);
@@ -36,11 +36,12 @@ class IngestionScript {
       const stats = this.documentProcessor.getChunkingStats(chunks);
       console.log('📊 Chunking Statistics:', stats);
 
-      // Store chunks in vector database
+      // Store chunks in Astra DB
       const result = await this.vectorStoreService.storeChunks(chunks, {
         source: path.basename(filePath),
         uploadedAt: new Date().toISOString(),
-        script: 'ingest.js'
+        script: 'ingest.js',
+        vectorStore: 'astra-db'
       });
 
       console.log('✅ Document ingestion completed successfully!');
@@ -93,7 +94,7 @@ class IngestionScript {
       }
 
       // Print summary
-      console.log('\n📋 Ingestion Summary:');
+      console.log('\n📋 Astra DB Ingestion Summary:');
       console.log(`✅ Successful: ${results.length}`);
       console.log(`❌ Failed: ${errors.length}`);
       
@@ -120,18 +121,18 @@ class IngestionScript {
   }
 
   /**
-   * Test the vector store connection
+   * Test the Astra DB connection
    */
   async testConnection() {
     try {
-      console.log('🔗 Testing vector store connection...');
+      console.log('🔗 Testing Astra DB connection...');
       
       const isConnected = await this.vectorStoreService.testConnection();
       
       if (isConnected) {
-        console.log('✅ Vector store connection successful');
+        console.log('✅ Astra DB connection successful');
       } else {
-        console.log('❌ Vector store connection failed');
+        console.log('❌ Astra DB connection failed');
       }
 
       return isConnected;
@@ -143,15 +144,15 @@ class IngestionScript {
   }
 
   /**
-   * Get vector store statistics
+   * Get Astra DB statistics
    */
   async getStats() {
     try {
-      console.log('📊 Getting vector store statistics...');
+      console.log('📊 Getting Astra DB statistics...');
       
       const stats = await this.vectorStoreService.getStats();
       
-      console.log('📈 Vector Store Stats:', stats);
+      console.log('📈 Astra DB Stats:', stats);
 
       return stats;
 
@@ -199,12 +200,12 @@ async function main() {
         break;
 
       default:
-        console.log('📚 Knowledge Base Ingestion Script');
+        console.log('📚 Knowledge Base Ingestion Script (Astra DB)');
         console.log('\nUsage:');
         console.log('  npm run ingest file <file-path>     - Process a single file');
         console.log('  npm run ingest directory <dir-path>  - Process all files in directory');
-        console.log('  npm run ingest test                 - Test vector store connection');
-        console.log('  npm run ingest stats                - Get vector store statistics');
+        console.log('  npm run ingest test                 - Test Astra DB connection');
+        console.log('  npm run ingest stats                - Get Astra DB statistics');
         console.log('\nExamples:');
         console.log('  npm run ingest file ./documents/report.pdf');
         console.log('  npm run ingest directory ./documents/');
