@@ -8,6 +8,9 @@ const { StringOutputParser } = require("@langchain/core/output_parsers");
 // Load environment variables
 dotenv.config();
 
+const ALTERNATIVE_QUESTION_COUNT = 3;
+const MAX_RELEVANT_DOCS_PER_QUESTION = 3;
+
 // Import services
 const AstraDBVectorStoreService = require("../services/AstraDBVectorStoreService");
 
@@ -20,6 +23,19 @@ class AstraDBQueryService {
       temperature: 0.7,
       maxTokens: 4000,
     });
+
+    this.alternativeQuestionPromptTemplate = PromptTemplate.fromTemplate(`
+      I am taking a user's input for providing answers using custom RAG based AI Assistant. Now i want you to generate {count} better variants of the user's question that can be used to get most relavant query embeddings for vector search.
+
+      User's question: {question}
+
+      Strictly return the questions array in parsable json format shown below in plain text format (no markdown or other formatting):
+      [
+        "question1",
+        "question2",
+        "question3"
+      ]
+    `);
 
     // Removed Instructions:
     //- If the context doesn't contain enough information, say "I cannot find the answer in the provided documents."
@@ -44,6 +60,28 @@ Question: {question}
     this.chain = this.promptTemplate
       .pipe(this.chatModel)
       .pipe(new StringOutputParser());
+
+    this.alternativeQuestionChain = this.alternativeQuestionPromptTemplate
+      .pipe(this.chatModel)
+      .pipe(new StringOutputParser());
+  }
+
+  async generateAlternativeQuestions(question, count = 3) {
+    try {
+      const alternativeQuestionsResponse = await this.alternativeQuestionChain.invoke({
+        question: question,
+        count: count,
+      });
+  
+      console.log("Output", alternativeQuestionsResponse);
+  
+      const parsedResponse = JSON.parse(alternativeQuestionsResponse)
+  
+      return parsedResponse;
+    } catch (error) {
+      console.error("Error generating alternative questions", error);
+      return [];
+    }
   }
 
   /**
@@ -52,16 +90,20 @@ Question: {question}
    * @param {number} k - Number of similar documents to retrieve
    * @returns {Promise<Object>} AI response with metadata
    */
-  async queryAI(question, k = 4) {
+  async queryAI(question) {
     try {
       console.log(`🤖 Processing question: "${question}"`);
 
       const startTime = Date.now();
-
+      
+      const alternativeQuestions = await this.generateAlternativeQuestions(question, ALTERNATIVE_QUESTION_COUNT);
+      const allQuestions = [question, ...alternativeQuestions];
+      console.log("All Questions: ",allQuestions);
+      
       // Step 1: Retrieve relevant documents from vector store
-      const relevantDocs = await this.vectorStoreService.similaritySearch(
-        question,
-        k
+      const relevantDocs = await this.vectorStoreService.similaritySearchMultiple(
+        allQuestions,
+        MAX_RELEVANT_DOCS_PER_QUESTION
       );
 
       console.log("Relevant docs", relevantDocs);
