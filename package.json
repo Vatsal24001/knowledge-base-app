@@ -21,6 +21,7 @@
   "author": "Your Team",
   "license": "MIT",
   "dependencies": {
+    "@datastax/astra-db-ts": "^2.0.2",
     "@langchain/community": "^0.0.20",
     "@langchain/core": "^0.2.21",
     "@langchain/openai": "^0.0.14",
