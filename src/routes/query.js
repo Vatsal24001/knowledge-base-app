@@ -33,7 +33,7 @@ router.post("/ask", async (req, res) => {
 
     console.log(`🔍 Processing query: "${question}"`);
 
-    const response = await astraDBQueryService.queryAI(question, 4);
+    const response = await astraDBQueryService.queryAI(question, 10);
 
     return res.status(200).json(response);
   } catch (error) {

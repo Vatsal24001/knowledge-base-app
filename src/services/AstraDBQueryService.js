@@ -18,15 +18,17 @@ class AstraDBQueryService {
       openAIApiKey: process.env.OPENAI_API_KEY,
       modelName: "gpt-4o-mini",
       temperature: 0.7,
-      maxTokens: 1000,
+      maxTokens: 4000,
     });
 
+    // Removed Instructions:
+    //- If the context doesn't contain enough information, say "I cannot find the answer in the provided documents."
     this.promptTemplate = PromptTemplate.fromTemplate(`
 You are the Saleshandy Internal AI Assistant, a specialized knowledge base system designed to help internal teams understand and navigate the Saleshandy cold outreach platform. You have comprehensive knowledge of Saleshandy's product features, capabilities, and internal processes. Use the below context to augment what you know about Saleshandy.
 
 Instructions:
 - Answer based only on the provided context
-- If the context doesn't contain enough information, say "I cannot find the answer in the provided documents."
+- Use given context for taking reference but should answer for all kinds of requests as long as context contains the target information
 - Be concise but thorough
 - Use bullet points when appropriate for better readability
 
