@@ -11,7 +11,7 @@ dotenv.config();
 // Import services
 const AstraDBVectorStoreService = require('../services/AstraDBVectorStoreService');
 
-class QueryService {
+class AstraDBQueryService {
   constructor() {
     this.vectorStoreService = new AstraDBVectorStoreService();
     this.chatModel = new ChatOpenAI({
@@ -55,6 +55,8 @@ Answer:`);
 
       // Step 1: Retrieve relevant documents from vector store
       const relevantDocs = await this.vectorStoreService.similaritySearch(question, k);
+
+      console.log("Relevant docs", relevantDocs);
       
       if (relevantDocs.length === 0) {
         return {
@@ -67,8 +69,11 @@ Answer:`);
 
       // Step 2: Prepare context from retrieved documents
       const context = relevantDocs.map(doc => doc.pageContent).join("\n\n");
+
+      console.log("Context", context);
       
       // Step 3: Generate AI response
+      // TODO Check here
       const response = await this.chain.invoke({
         context: context,
         question: question
@@ -204,4 +209,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = QueryService;
+module.exports = AstraDBQueryService;

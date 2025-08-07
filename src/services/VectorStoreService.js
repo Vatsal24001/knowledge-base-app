@@ -130,6 +130,8 @@ class VectorStoreService {
     try {
       await this.initialize();
 
+      console.log("Test init");
+
       // Note: ChromaDB doesn't provide direct count methods in LangChain
       // This is a simplified implementation
       const sampleQuery = "test query for stats";

@@ -1,52 +1,47 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
+const AstraDBVectorStoreService = require("../services/AstraDBVectorStoreService");
+const AstraDBQueryService = require("../services/AstraDBQueryService");
 
+// Initialize vector store service
+const astraDBVectorStoreService = new AstraDBVectorStoreService();
+const astraDBQueryService = new AstraDBQueryService();
 
-const dotenv = require('dotenv');
-const { ChatOpenAI } = require('@langchain/openai');
-const { PromptTemplate } = require('@langchain/core/prompts');
-const { StringOutputParser } = require('@langchain/core/output_parsers');
+const dotenv = require("dotenv");
+const { ChatOpenAI } = require("@langchain/openai");
+const { PromptTemplate } = require("@langchain/core/prompts");
+const { StringOutputParser } = require("@langchain/core/output_parsers");
 
 // Load environment variables
 dotenv.config();
-
 
 /**
  * @route POST /api/query/ask
  * @desc Query the knowledge base with a question
  * @access Public
  */
-router.post('/ask', async (req, res) => {
+router.post("/ask", async (req, res) => {
   try {
     const { question } = req.body;
 
-    if (!question || typeof question !== 'string') {
+    if (!question || typeof question !== "string") {
       return res.status(400).json({
-        error: 'Invalid question',
-        message: 'Please provide a valid question string'
+        error: "Invalid question",
+        message: "Please provide a valid question string",
       });
     }
 
-    // TODO: Implement Phase 2 - Query processing
-    // This will include:
-    // 1. Query embedding
-    // 2. Vector search
-    // 3. RAG response generation
+    console.log(`🔍 Processing query: "${question}"`);
 
-    res.status(200).json({
-      success: true,
-      message: 'Query endpoint ready for Phase 2 implementation',
-      data: {
-        question: question,
-        status: 'Phase 2 - Query processing not yet implemented'
-      }
-    });
+    const response = await astraDBQueryService.queryAI(question, 4);
 
+    return res.status(200).json(response);
   } catch (error) {
-    console.error('Error processing query:', error);
+    console.error("❌ Error processing query:", error);
     res.status(500).json({
-      error: 'Query processing failed',
-      message: error.message
+      error: "Query processing failed",
+      message: error.message,
+      details: process.env.NODE_ENV === "development" ? error.stack : undefined,
     });
   }
 });
@@ -56,22 +51,21 @@ router.post('/ask', async (req, res) => {
  * @desc Get query history (if implemented)
  * @access Public
  */
-router.get('/history', async (req, res) => {
+router.get("/history", async (req, res) => {
   try {
     // TODO: Implement query history tracking
     res.status(200).json({
       success: true,
-      message: 'Query history endpoint ready for implementation',
-      data: []
+      message: "Query history endpoint ready for implementation",
+      data: [],
     });
-
   } catch (error) {
-    console.error('Error getting query history:', error);
+    console.error("Error getting query history:", error);
     res.status(500).json({
-      error: 'Failed to get query history',
-      message: error.message
+      error: "Failed to get query history",
+      message: error.message,
     });
   }
 });
 
-module.exports = router; 
+module.exports = router;

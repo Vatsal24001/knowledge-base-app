@@ -38,8 +38,18 @@ class AstraDBVectorStoreService {
       console.log(`🔗 Connecting to Astra DB at ${this.astraConfig.endpoint}`);
       console.log(`📚 Using collection: ${this.astraConfig.collection}`);
 
-      // Initialize vector store
-      this.vectorStore = new AstraDBVectorStore(this.embeddings, this.astraConfig);
+      // Try to initialize with existing index first
+      try {
+        this.vectorStore = await AstraDBVectorStore.fromExistingIndex(
+          this.embeddings,
+          this.astraConfig
+        );
+        console.log('✅ Connected to existing Astra DB collection');
+      } catch (error) {
+        console.log('⚠️  Collection does not exist, will be created on first document insertion');
+        // Don't initialize vectorStore yet - it will be created when first document is added
+        this.vectorStore = null;
+      }
 
       this.isInitialized = true;
       console.log('✅ Astra DB vector store initialized successfully');
@@ -58,8 +68,6 @@ class AstraDBVectorStoreService {
    */
   async storeChunks(chunks, metadata = {}) {
     try {
-      await this.initialize();
-
       if (!chunks || chunks.length === 0) {
         throw new Error('No chunks provided for storage');
       }
@@ -82,8 +90,21 @@ class AstraDBVectorStoreService {
         });
       });
 
-      // Store chunks in Astra DB
-      await AstraDBVectorStore.fromDocuments(enrichedChunks, this.embeddings, this.astraConfig);
+      // Store chunks in Astra DB using fromDocuments
+      // This will create the collection if it doesn't exist
+      const vectorStore = await AstraDBVectorStore.fromDocuments(
+        enrichedChunks, 
+        this.embeddings, 
+        {
+          token: this.astraConfig.token,
+          endpoint: this.astraConfig.endpoint,
+          collection: this.astraConfig.collection,
+          collectionOptions: this.astraConfig.collectionOptions
+        }
+      );
+
+      // Update our vectorStore reference
+      this.vectorStore = vectorStore;
 
       const processingTime = Date.now() - startTime;
 
@@ -113,7 +134,12 @@ class AstraDBVectorStoreService {
     try {
       await this.initialize();
 
-      console.log(`�� Searching for: "${query}"`);
+      console.log(`🔍 Searching for: "${query}"`);
+
+      // If vectorStore is null, it means no documents have been stored yet
+      if (!this.vectorStore) {
+        throw new Error('No documents have been stored in the collection yet. Please ingest some documents first.');
+      }
 
       const results = await this.vectorStore.similaritySearch(query, k);
 
@@ -135,6 +161,20 @@ class AstraDBVectorStoreService {
     try {
       await this.initialize();
 
+      // If no vectorStore exists, return basic stats
+      if (!this.vectorStore) {
+        return {
+          collectionName: this.astraConfig.collection,
+          endpoint: this.astraConfig.endpoint,
+          isConnected: this.isInitialized,
+          lastUpdated: new Date().toISOString(),
+          vectorDimension: 1536,
+          metric: "cosine",
+          status: "No documents stored yet",
+          note: "Collection will be created when first documents are ingested"
+        };
+      }
+
       // Test connection with a sample query
       const sampleQuery = "test query for stats";
       const results = await this.similaritySearch(sampleQuery, 1);
@@ -146,6 +186,7 @@ class AstraDBVectorStoreService {
         lastUpdated: new Date().toISOString(),
         vectorDimension: 1536,
         metric: "cosine",
+        status: "Active",
         note: "Astra DB statistics available through direct client access"
       };
 
@@ -166,6 +207,12 @@ class AstraDBVectorStoreService {
   async testConnection() {
     try {
       await this.initialize();
+      
+      // If no vectorStore exists, the connection is still valid but no documents stored
+      if (!this.vectorStore) {
+        console.log('✅ Astra DB connection successful (no documents stored yet)');
+        return true;
+      }
       
       // Try a simple search to test the connection
       await this.similaritySearch("test", 1);
