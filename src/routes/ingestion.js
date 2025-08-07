@@ -8,7 +8,7 @@ const router = express.Router();
 
 // Import services
 const DocumentProcessor = require('../services/DocumentProcessor');
-const VectorStoreService = require('../services/VectorStoreService');
+const AstraDBVectorStoreService = require('../services/AstraDBVectorStoreService');
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -42,11 +42,11 @@ const upload = multer({
 
 // Initialize services
 const documentProcessor = new DocumentProcessor();
-const vectorStoreService = new VectorStoreService();
+const vectorStoreService = new AstraDBVectorStoreService();
 
 /**
  * @route POST /api/ingestion/upload
- * @desc Upload and process a single document
+ * @desc Upload and process a single document to Astra DB
  * @access Public
  */
 router.post('/upload', upload.single('document'), async (req, res) => {
@@ -65,10 +65,11 @@ router.post('/upload', upload.single('document'), async (req, res) => {
     
     console.log(`✂️  Document split into ${chunks.length} chunks`);
 
-    // Step 2: Generate embeddings and store in vector database
+    // Step 2: Generate embeddings and store in Astra DB
     const result = await vectorStoreService.storeChunks(chunks, {
       source: req.file.originalname,
-      uploadedAt: new Date().toISOString()
+      uploadedAt: new Date().toISOString(),
+      vectorStore: 'astra-db'
     });
 
     // Clean up uploaded file
@@ -76,12 +77,14 @@ router.post('/upload', upload.single('document'), async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Document processed and stored successfully',
+      message: 'Document processed and stored successfully in Astra DB',
       data: {
         originalName: req.file.originalname,
         chunksProcessed: chunks.length,
         vectorStoreId: result.id,
-        processingTime: result.processingTime
+        processingTime: result.processingTime,
+        collectionName: result.collectionName,
+        endpoint: result.endpoint
       }
     });
 
@@ -102,7 +105,7 @@ router.post('/upload', upload.single('document'), async (req, res) => {
 
 /**
  * @route POST /api/ingestion/batch
- * @desc Upload and process multiple documents
+ * @desc Upload and process multiple documents to Astra DB
  * @access Public
  */
 router.post('/batch', upload.array('documents', 10), async (req, res) => {
@@ -127,14 +130,16 @@ router.post('/batch', upload.array('documents', 10), async (req, res) => {
         const chunks = await documentProcessor.processDocument(file.path);
         const result = await vectorStoreService.storeChunks(chunks, {
           source: file.originalname,
-          uploadedAt: new Date().toISOString()
+          uploadedAt: new Date().toISOString(),
+          vectorStore: 'astra-db'
         });
 
         results.push({
           originalName: file.originalname,
           chunksProcessed: chunks.length,
           vectorStoreId: result.id,
-          processingTime: result.processingTime
+          processingTime: result.processingTime,
+          collectionName: result.collectionName
         });
 
         // Clean up file
@@ -172,7 +177,7 @@ router.post('/batch', upload.array('documents', 10), async (req, res) => {
 
 /**
  * @route GET /api/ingestion/status
- * @desc Get ingestion status and statistics
+ * @desc Get Astra DB ingestion status and statistics
  * @access Public
  */
 router.get('/status', async (req, res) => {
@@ -185,9 +190,9 @@ router.get('/status', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error getting ingestion status:', error);
+    console.error('Error getting Astra DB ingestion status:', error);
     res.status(500).json({
-      error: 'Failed to get ingestion status',
+      error: 'Failed to get Astra DB ingestion status',
       message: error.message
     });
   }
@@ -195,7 +200,7 @@ router.get('/status', async (req, res) => {
 
 /**
  * @route DELETE /api/ingestion/clear
- * @desc Clear all ingested data (for testing/reset purposes)
+ * @desc Clear all ingested data from Astra DB (for testing/reset purposes)
  * @access Public
  */
 router.delete('/clear', async (req, res) => {
@@ -204,13 +209,13 @@ router.delete('/clear', async (req, res) => {
     
     res.status(200).json({
       success: true,
-      message: 'All ingested data cleared successfully'
+      message: 'All ingested data cleared successfully from Astra DB'
     });
 
   } catch (error) {
-    console.error('Error clearing data:', error);
+    console.error('Error clearing Astra DB data:', error);
     res.status(500).json({
-      error: 'Failed to clear data',
+      error: 'Failed to clear Astra DB data',
       message: error.message
     });
   }
