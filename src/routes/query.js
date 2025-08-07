@@ -1,6 +1,16 @@
 const express = require('express');
 const router = express.Router();
 
+
+const dotenv = require('dotenv');
+const { ChatOpenAI } = require('@langchain/openai');
+const { PromptTemplate } = require('@langchain/core/prompts');
+const { StringOutputParser } = require('@langchain/core/output_parsers');
+
+// Load environment variables
+dotenv.config();
+
+
 /**
  * @route POST /api/query/ask
  * @desc Query the knowledge base with a question
