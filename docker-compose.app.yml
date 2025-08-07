@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  knowledge-base-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: knowledge-base-app
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - CHROMA_URL=http://chromadb:8000
+      - CHROMA_COLLECTION_NAME=knowledge-base
+      - MAX_FILE_SIZE=10485760
+      - LOG_LEVEL=info
+    volumes:
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+    depends_on:
+      - chromadb
+    networks:
+      - knowledge-base-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  knowledge-base-network:
+    driver: bridge 
